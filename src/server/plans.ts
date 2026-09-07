@@ -220,9 +220,14 @@ export async function confirmPlanSlot(
     .eq("plan_id", plan.id)
     .maybeSingle();
   if (!slot) throw new Error("Ese horario no pertenece al partido.");
-  const { error } = await db
+  const { data: confirmed, error } = await db
     .from("plans")
     .update({ status: "confirmed", confirmed_slot_id: slotId })
-    .eq("id", plan.id);
+    .eq("id", plan.id)
+    .eq("status", "open")
+    .select("id")
+    .maybeSingle<{ id: string }>();
   if (error) throw new Error("No se pudo confirmar el horario.");
+  if (!confirmed)
+    throw new Error("Este partido ya está cerrado. Recarga la página.");
 }

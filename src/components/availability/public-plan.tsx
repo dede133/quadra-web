@@ -209,6 +209,7 @@ export function PublicPlan({
                         {choices.map((choice) => (
                           <button
                             type="button"
+                            aria-pressed={responses[slot.id] === choice.value}
                             key={choice.value}
                             onClick={() =>
                               setResponses((all) => ({

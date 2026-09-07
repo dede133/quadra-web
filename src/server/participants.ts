@@ -11,18 +11,21 @@ export async function saveParticipantAvailability(input: {
 }): Promise<{ editToken: string }> {
   if (!input.displayName.trim()) throw new Error("Escribe tu nombre.");
   const db = supabaseAdmin();
-  const { data: plan } = await db
+  const { data: plan, error: planError } = await db
     .from("plans")
     .select("id, status")
     .eq("public_slug", input.slug)
     .maybeSingle<{ id: string; status: string }>();
+  if (planError) throw new Error("No se pudo consultar el partido.");
   if (!plan || plan.status !== "open")
     throw new Error("Este partido ya no acepta disponibilidad.");
-  const { data: slots } = await db
+  const { data: slots, error: slotsError } = await db
     .from("plan_slots")
     .select("id")
     .eq("plan_id", plan.id)
     .returns<{ id: string }[]>();
+  if (slotsError || !slots?.length)
+    throw new Error("No se pudieron consultar los horarios.");
   const expected = new Set(
     ((slots ?? []) as { id: string }[]).map((slot) => slot.id),
   );
@@ -41,12 +44,15 @@ export async function saveParticipantAvailability(input: {
   let participantId: string | undefined;
   let editToken = input.editToken;
   if (editToken) {
-    const { data } = await db
+    const { data, error } = await db
       .from("participants")
       .select("id")
       .eq("plan_id", plan.id)
       .eq("edit_token_hash", hashToken(editToken))
       .maybeSingle<{ id: string }>();
+    if (error) throw new Error("No se pudo consultar tu respuesta.");
+    if (!data)
+      throw new Error("El enlace de edición no es válido para este partido.");
     participantId = data?.id;
   }
   if (!participantId) {
@@ -64,10 +70,11 @@ export async function saveParticipantAvailability(input: {
       throw new Error("No se pudo guardar tu disponibilidad.");
     participantId = data.id;
   } else {
-    await db
+    const { error } = await db
       .from("participants")
       .update({ display_name: input.displayName.trim() })
       .eq("id", participantId);
+    if (error) throw new Error("No se pudo actualizar tu nombre.");
   }
   const { error } = await db.from("availability").upsert(
     input.availability.map((entry) => ({

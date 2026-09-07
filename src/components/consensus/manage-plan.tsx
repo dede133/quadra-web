@@ -178,7 +178,7 @@ export function ManagePlan({
                     {result.overflow} por encima del máximo indicado.
                   </p>
                 )}
-                {plan.status !== "confirmed" && (
+                {plan.status === "open" && (
                   <button
                     className="button-primary mt-5 w-full"
                     disabled={Boolean(pendingSlot)}
