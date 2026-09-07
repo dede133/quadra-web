@@ -33,12 +33,43 @@ export function zonedDateTimeToUtc(
   time: string,
   timezone: string,
 ): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time))
+    throw new Error("Hay una fecha u hora inválida.");
   const [year, month, day] = date.split("-").map(Number);
   const [hour, minute] = time.split(":").map(Number);
   const wallClock = Date.UTC(year, month - 1, day, hour, minute);
-  let result = new Date(wallClock - offsetMs(new Date(wallClock), timezone));
-  result = new Date(wallClock - offsetMs(result, timezone));
-  return result;
+  const entered = new Date(wallClock);
+  if (
+    entered.getUTCFullYear() !== year ||
+    entered.getUTCMonth() !== month - 1 ||
+    entered.getUTCDate() !== day ||
+    hour > 23 ||
+    minute > 59
+  )
+    throw new Error("Hay una fecha u hora inválida.");
+
+  // Check both sides of a clock change; missing or repeated local times need another choice.
+  let offsets: Set<number>;
+  try {
+    offsets = new Set(
+      [-86_400_000, 0, 86_400_000].map((delta) =>
+        offsetMs(new Date(wallClock + delta), timezone),
+      ),
+    );
+  } catch {
+    throw new Error("La zona horaria no es válida.");
+  }
+  const candidates = [...offsets]
+    .map((offset) => new Date(wallClock - offset))
+    .filter(
+      (candidate) =>
+        candidate.getTime() + offsetMs(candidate, timezone) === wallClock,
+    );
+  if (candidates.length !== 1)
+    throw new Error(
+      "Esta hora no existe o se repite por el cambio horario. Elige otra.",
+    );
+  return candidates[0];
 }
 
 export function makeSlots(
@@ -46,9 +77,13 @@ export function makeSlots(
   durationMinutes: number,
   timezone: string,
 ): { startAt: Date; endAt: Date }[] {
+  if (![60, 90].includes(durationMinutes))
+    throw new Error("La duración no es válida.");
   const slots = windows.flatMap((window) => {
     const start = zonedDateTimeToUtc(window.date, window.startTime, timezone);
     const end = zonedDateTimeToUtc(window.date, window.endTime, timezone);
+    if (end <= start)
+      throw new Error("La hora de fin debe ser posterior a la de inicio.");
     const durationMs = durationMinutes * 60_000;
     const entries: { startAt: Date; endAt: Date }[] = [];
     for (
