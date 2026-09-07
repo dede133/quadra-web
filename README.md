@@ -8,10 +8,10 @@ Next.js (App Router), TypeScript estricto, Tailwind CSS y Supabase PostgreSQL. S
 
 ## Requisitos e instalación
 
-Necesitas Node.js 20.9 o superior y un proyecto de Supabase.
+Necesitas Node.js 22.13 o superior y un proyecto de Supabase.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 ```
 
@@ -46,3 +46,18 @@ npm run build
 2. Se redirige al enlace secreto `/manage/[token]`; desde ahí se comparte `/p/[slug]`.
 3. Participantes sin cuenta guardan Perfecto / Podría / No puedo. El token de edición queda solo en el almacenamiento local de ese navegador.
 4. El panel administra las opciones ordenadas y puede confirmar cualquier slot. Entonces la página pública muestra el partido confirmado.
+
+## Estado y límites
+
+Es un prototipo personal. No incluye cuentas, reservas de campos ni notificaciones.
+El enlace de administración da acceso al organizador: comparte únicamente el enlace público. Si pierdes el enlace de administración o borras el almacenamiento del navegador del participante, no hay recuperación de acceso.
+
+Las pruebas cubren clasificación de horarios, fechas y comprobaciones de permisos del servidor con respuestas simuladas de Supabase. No requieren credenciales y no sustituyen una prueba completa contra una base de datos real.
+
+Los guardados de plan/horarios y participante/disponibilidad todavía usan varias operaciones, sin una transacción conjunta. Un fallo intermedio puede dejar datos parciales; también queda pendiente coordinar una respuesta que coincida con la confirmación del organizador. No está preparado para un servicio público con tráfico abierto: falta limitar el abuso de los formularios.
+
+Se rechazan las fechas imposibles y las horas que no existen o se repiten durante el cambio horario. La zona predeterminada es Europe/Madrid.
+
+Para comprobar el flujo completo, crea un partido, abre su enlace público en otro navegador, responde, edita la respuesta y confirma desde el enlace del organizador. Comprueba que después ya no se admiten respuestas.
+
+Las versiones de PostCSS y sharp usadas por Next están fijadas en `overrides` para resolver los avisos del árbol de dependencias sin cambiar de versión mayor de Next.
